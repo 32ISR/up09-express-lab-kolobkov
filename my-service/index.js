@@ -4,10 +4,14 @@ const bcr = require("bcryptjs")
 const jwt = require("jsonwebtoken")
 const app = express()
 
+app.use(express.json())
+
 const PORT = 3000
 const SECRET = ('159357')
 
-app.post("/auth/signup", (req, res) => {
+app.post("/api/auth/signup", (req, res) => {
+    console.log(req.body);
+    
     try {
         const {username, password, email} = req.body
     
@@ -42,7 +46,31 @@ app.post("/auth/signup", (req, res) => {
         const token = jwt.sign({...safeUser}, SECRET, {expiresIn: "24h"})
         res.status(201).json({success: true, token, user: safeUser})
     } catch(err) {
+        console.error(err)
+        return res.status(500).json({ error: "Failed to create" })
+    }
+})
 
+app.post("/api/auth/signin", (req, res) => {
+    try {
+        const { username, password } = req.body
+
+        if (!username || !password) {
+            return res.status(400).json({ error: "Missing data" })
+        }
+
+        const user = db.prepare("SELECT * FROM users WHERE username = ?").get(username)
+        if (!user) return res.status(401).json({ error: "Неправильный пароль" })
+
+        const valid = bcr.compareSync(password, user.password)
+        if (!valid) return res.status(401).json({ error: "Неправильный пароль" })
+
+        const { password: _, ...safeUser } = user
+        const token = jwt.sign({ ...safeUser }, SECRET, { expiresIn: "24h" })
+        res.status(200).json({ success: true, token, user: safeUser })
+    } catch (error) {
+        console.error(error)
+        return res.status(500).json({ error: "Something wrong" })
     }
 })
 
